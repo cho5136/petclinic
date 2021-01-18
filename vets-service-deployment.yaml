@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vets-service
+  name: vets-service
+  namespace: spring-petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vets-service
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: vets-service
+    spec:
+      containers:
+      - image: ${REPOSITORY_PREFIX}/vets-service:latest
+        name: vets-service
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: /actuator/health/liveness
+          initialDelaySeconds: 90
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            port: 8080
+            path: /actuator/health/readiness
+          initialDelaySeconds: 15
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sh", "-c", "sleep 10"]
+        resources:
+          limits:
+            cpu : 2000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: kubernetes
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mariadb://mariadb-icp-cdr.mariadb.database.azure.com:3306/service_instance_db?useSSL=true
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+             secretKeyRef:
+               name: mariadb-credential
+               key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+             secretKeyRef:
+               name: mariadb-credential
+               key: password               
+        ports:
+        - containerPort: 8080
+      restartPolicy: Always
+status: {}
